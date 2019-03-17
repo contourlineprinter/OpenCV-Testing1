@@ -45,8 +45,9 @@ y = []
 pointC = []
 xsave = -1
 ysave = -1
-range = 50
 count = 0
+
+range = 50 # range - change to get different number of points
 
 # process points in contour - remove some
 for i in contours:
