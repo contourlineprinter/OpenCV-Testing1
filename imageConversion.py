@@ -111,7 +111,7 @@ class ImageConversion:
         
         # Gaussian Blur
         blurImage = cv2.GaussianBlur(image,(5,5),0)
-        cv2.imshow("Blur Image", blurImage)
+        self.showImage("Blur Image", blurImage)
 
         # check if image is grayscale
         rows, columns, channels = image.shape # find shape of image
@@ -126,18 +126,18 @@ class ImageConversion:
         # mean subtraction from the end result
         # only the threshold picture
         adaptThresImage = cv2.adaptiveThreshold(grayImage, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 295, 1)
-        cv2.imshow("Threshold Image", adaptThresImage)
+        self.showImage("Threshold Image", adaptThresImage)
 
         # Taking a matrix of size 3 as the kernel 
         kernel = np.ones((3,3), np.uint8) 
 
         #dilation
         dilationImage = cv2.dilate(adaptThresImage, kernel, iterations=1)
-        cv2.imshow("Dilation Image", dilationImage)
+        self.showImage("Dilation Image", dilationImage)
 
         #erosion
         erosionImage = cv2.erode(dilationImage, kernel, iterations=1)
-        cv2.imshow("Erosion Image", erosionImage)
+        self.showImage("Erosion Image", erosionImage)
 
         return erosionImage
 #-----------------------------------------
@@ -152,21 +152,48 @@ class ImageConversion:
     #   smaller range - more points, more lines in the image 
     #   larger range - less points, less lines in the image
     # parameters: image, range for x, range for y, line thickness in pixel
-    def createContours(self, image, rangeForX = 5, rangeForY = 5, lineThickness = 2):
+    def createContours(self, image, lineThickness = 2):
 
         # find countour
         contours, hierarchy = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
+        
         print("Found %d objects in intial contour list." % len(contours)) # length of the contour list
 
+        pointC = []                         # new set of points
+        self.filterPoints(contours, pointC) # filter points
+        height, width = image.shape[:2]     # get image size
+        newContours = np.array([pointC])    # make a numpy array with the new points for contour image
+
+        #don't sort - doesn't work?
+        #vec = np.sort(np.array([pointC]))
+
+        # draw the contour images
+        blankCanvas1 = 255*np.ones((height, width, 3), np.uint8)                                        # make blank canvas
+        blankCanvas2 = 255*np.ones((height, width, 3), np.uint8)                                        # make blank canvas
+        imageContourOld = cv2.drawContours(blankCanvas1, contours, -1, (0,255,0), lineThickness)        # draw the contour image with old point
+        imageContourNew = cv2.drawContours(blankCanvas2, newContours, -1, (0,255,0), lineThickness)     # draw the contour image with new point
+
+        self.showTwoImages(imageContourOld, imageContourNew, "Contour Old", "Contour New")
+
+
+        return imageContourNew
+    
+#-----------------------------------------
+    # filter contour points based on specific range of x and y coordinates
+    # range is used to filter out some points in contour image:
+    #   smaller range - more points, more lines in the image 
+    #   larger range - less points, less lines in the image
+    # parameters: set of points that make up contour, range for x, range for y, line thickness in pixel
+    def filterPoints(self, contourPoints, newContourPoints, rangeForX = 5, rangeForY = 5):
+
         # set up things for processing points in contour
-        x = y = pointC = []
+        x = y = []
         xsave = -1
         ysave = -1
         count = 0
 
         # process points in contour - remove some
-        for i in contours:
+        for i in contourPoints:
             for j in i:
                 for k in j:
                     xget = k[0] #get x
@@ -185,33 +212,20 @@ class ImageConversion:
                         #print("got here - yes")
                         xsave = xget
                         ysave = yget
-                        pointC.append(k)
+                        newContourPoints.append(k)
                         count+=1
 
         print("Last saved x: %d" % xsave) # last save x
         print("Last saved y: %d" % ysave) # last save y
-        print("Number of points in contour image: %d" % count) # number of points
-
-        height, width = image.shape[:2]     # get image size
-        newContours = np.array([pointC])            # make a numpy array with the new points for contour image
-
-        #don't sort - doesn't work?
-        #vec = np.sort(np.array([pointC]))
-
-        # draw the contour images
-        blankCanvas1 = 255*np.ones((height, width, 3), np.uint8)                                        # make blank canvas
-        blankCanvas2 = 255*np.ones((height, width, 3), np.uint8)                                        # make blank canvas
-        imageContourOld = cv2.drawContours(blankCanvas1, contours, -1, (0,255,0), lineThickness)        # draw the contour image with old point
-        imageContourNew = cv2.drawContours(blankCanvas2, newContours, -1, (0,255,0), lineThickness)     # draw the contour image with new point
-
-        self.showTwoImages(imageContourOld, imageContourNew, "Contour Old", "Contour New")
-
-        return imageContourNew
+        print("Number of points in contour image: %d\n" % count) # number of points
     
 #-----------------------------------------
 
+name = "1.jpg"
+path = "./" + name
+
 # create an ImageConversion object
-imgConvert1 = ImageConversion("1.jpg", "./1.jpg")
+imgConvert1 = ImageConversion(name, path)
 
 # print class documentation
 print ("ImageConversion.__doc__:", ImageConversion.__doc__)
@@ -220,8 +234,8 @@ print ("ImageConversion.__doc__:", ImageConversion.__doc__)
 imgConvert1.printImgInfo()
 
 # load in image
-img = imgConvert1.readImageOriginal("1.jpg")
-imgGray = imgConvert1.readImageGrayscale("1.jpg")
+img = imgConvert1.readImageOriginal(name)
+imgGray = imgConvert1.readImageGrayscale(name)
 
 # show image
 #imgConvert1.showImage("Original Image", img)
@@ -239,10 +253,10 @@ edgeImg = imgConvert1.getEdges(eroImg)
 imgConvert1.showImage("Edge Image", edgeImg)
 
 # find contour lines using Canny edges
-conImgEdge = imgConvert1.createContours(edgeImg, 6, 6)
+conImgEdge = imgConvert1.createContours(edgeImg)
 
 # find contour lines not using Canny edges
-conImgNoEdge = imgConvert1.createContours(eroImg2, 6, 6)
+conImgNoEdge = imgConvert1.createContours(eroImg2)
 
 # compare two images - using edge pic and not using edge pic
 imgConvert1.showThreeImages(img, conImgEdge, conImgNoEdge, "Original Image", "Contour with Canny", "Contour without Canny")
