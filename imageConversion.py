@@ -48,6 +48,11 @@ class ImageConversion:
         cv2.waitKey(0)      # wait till any key is press
         cv2.destroyAllWindows() # destroy all windows
 #-----------------------------------------
+    # convert image to grayscale
+    def turnImageGray(self, image):
+        grayImage = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) # convert to grayscale
+        return grayImage
+#-----------------------------------------
     # show two images with matplotlib
     # paramters: image 1, image 2, image 1 window name, image 2 window name
     def showTwoImages(self, image1, image2, title1, title2):
@@ -113,23 +118,23 @@ class ImageConversion:
         blurImage = cv2.GaussianBlur(image,(5,5),0)
         self.showImage("Blur Image", blurImage)
 
-        # check if image is grayscale
-        rows, columns, channels = image.shape # find shape of image
-
-        # if channel is greater 0 - not grayscale
-        if channels > 0:
-            grayImage = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) # convert to grayscale
+        # sharpen image
+        kernel = np.array([[-1,-1,-1],
+                                [-1, 9,-1],
+                                [-1,-1,-1]])
+        sharpImage = cv2.filter2D(blurImage, -1, kernel) # applying the sharpening kernel to the input image & displaying it.
+        self.showImage("Sharpen Image", sharpImage)
             
         # adaptive threshold
         # image, max pixel value, type of threshold,
         # neighborhood parameter indicating how far or what the localization of where the adaptive thresholding will act over,
         # mean subtraction from the end result
         # only the threshold picture
-        adaptThresImage = cv2.adaptiveThreshold(grayImage, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 295, 1)
+        adaptThresImage = cv2.adaptiveThreshold(sharpImage, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 295, 1)
         self.showImage("Threshold Image", adaptThresImage)
 
         # Taking a matrix of size 3 as the kernel 
-        kernel = np.ones((3,3), np.uint8) 
+        #kernel = np.ones((3,3), np.uint8) 
 
         #dilation
         dilationImage = cv2.dilate(adaptThresImage, kernel, iterations=1)
@@ -159,9 +164,10 @@ class ImageConversion:
         
         print("Found %d objects in intial contour list." % len(contours)) # length of the contour list
 
+        height, width = image.shape[:2]     # get image size
+
         pointC = []                         # new set of points
         self.filterPoints(contours, pointC) # filter points
-        height, width = image.shape[:2]     # get image size
         newContours = np.array([pointC])    # make a numpy array with the new points for contour image
 
         #don't sort - doesn't work?
@@ -175,9 +181,7 @@ class ImageConversion:
 
         self.showTwoImages(imageContourOld, imageContourNew, "Contour Old", "Contour New")
 
-
         return imageContourNew
-    
 #-----------------------------------------
     # filter contour points based on specific range of x and y coordinates
     # range is used to filter out some points in contour image:
