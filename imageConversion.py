@@ -2,14 +2,12 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 
-class ImageConversion:
-    
+class ImageConversion:    
     "Class to perform image conversion to contour, svg, and robot instructions\n"
 #-----------------------------------------
     # constructor
     # parameters: orignal image name, orignal image path
     def __init__(self, origImgName, origImgPath):
-
         try:
             self.origImgName = origImgName
             self.origImgPath = origImgPath
@@ -18,7 +16,6 @@ class ImageConversion:
 #-----------------------------------------
     # print the image information
     def printImgInfo(self):
-
         try:
             print("Image Name: %s\n" \
                 "Image Path: %s \n" % (self.origImgName, self.origImgPath))
@@ -26,12 +23,14 @@ class ImageConversion:
             print(sys.exc_info()[0])
 #-----------------------------------------
     # read in an image in with original colors
+    # parameter: image filename (if in current directory) or image path
     # return: original image
     def readImageOriginal(self, image):
         imgOriginal = cv2.imread(image, 1)  # read in image original colors
         return imgOriginal                      
 #-----------------------------------------
     # read in an image in as grayscale
+    # parameter: image filename (if in current directory) or image path
     # return: image in grayscale
     def readImageGrayscale(self, image):
         imgGray = cv2.imread(image, 0)  # read in image grayscale
@@ -49,6 +48,8 @@ class ImageConversion:
         cv2.destroyAllWindows() # destroy all windows
 #-----------------------------------------
     # convert image to grayscale
+    # parameter: color image to be turned gray
+    # return: grayscale image
     def turnImageGray(self, image):
         grayImage = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) # convert to grayscale
         return grayImage
@@ -175,6 +176,7 @@ class ImageConversion:
     #   smaller range - more points, more lines in the image 
     #   larger range - less points, less lines in the image
     # parameters: image, range for x, range for y, line thickness in pixel
+    # return: new contour image
     def createContours(self, image, lineThickness = 2):
 
         # find countour
@@ -240,7 +242,6 @@ class ImageConversion:
         print("Last saved x: %d" % xsave) # last save x
         print("Last saved y: %d" % ysave) # last save y
         print("Number of points in contour image: %d\n" % count) # number of points
-    
 #-----------------------------------------
 
 name = "3.jpg"
