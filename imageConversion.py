@@ -110,7 +110,7 @@ class ImageConversion:
         plt.show() # show both image
 #-----------------------------------------
     # preprocess the image to find better edges
-    # parameter: image to process
+    # parameter: grayscale image to process (note: image has be this type to work)
     # return: processed image
     def getImageReady(self, image):
         
@@ -249,7 +249,7 @@ imgGray = imgConvert1.readImageGrayscale(name)
 #imgConvert1.showTwoImages(img, imgGray, "Original Image", "Gray Image")
 
 # get image ready
-eroImg = imgConvert1.getImageReady(img)
+eroImg = imgConvert1.getImageReady(imgGray)
 eroImg2 = eroImg.copy()
 
 # find edges of image
