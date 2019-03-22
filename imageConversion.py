@@ -120,8 +120,8 @@ class ImageConversion:
 
         # sharpen image
         kernel = np.array([[-1,-1,-1],
-                                [-1, 9,-1],
-                                [-1,-1,-1]])
+                            [-1, 9,-1],
+                            [-1,-1,-1]])
         sharpImage = cv2.filter2D(blurImage, -1, kernel) # applying the sharpening kernel to the input image & displaying it.
         self.showImage("Sharpen Image", sharpImage)
             
@@ -130,18 +130,36 @@ class ImageConversion:
         # neighborhood parameter indicating how far or what the localization of where the adaptive thresholding will act over,
         # mean subtraction from the end result
         # only the threshold picture
-        adaptThresImage = cv2.adaptiveThreshold(sharpImage, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 295, 1)
+        adaptThresImage = cv2.adaptiveThreshold(blurImage, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 295, 1)
         self.showImage("Threshold Image", adaptThresImage)
 
-        # Taking a matrix of size 3 as the kernel 
-        #kernel = np.ones((3,3), np.uint8) 
+        height, width = image.shape[:2]         # get image size
+        
+        if (height > 800):                      # if height is greater than 800
+            kernelSizeRow = 4                   # kernel size - 4 rows
+            kernelSizeCol = 4                   # kernel size - 4 columns
+            iterationValue = 6                  # do 6 iterations
+            print ("height > 800")
+        elif (height > 1300) or (width > 1300): # if height or width is greater than 1300
+            kernelSizeRow = 5                   # kernel size - 6 rows
+            kernelSizeCol = 5                   # kernel size - 6 columns
+            iterationValue = 7                  # do 7 iterations
+            print ("height > 1300")
+        else:                                   # for images of other size
+            kernelSizeRow = 3                   # kernel size - 3 rows
+            kernelSizeCol = 3                   # kernel size - 3 columns
+            iterationValue = 1                  # do 1 iteration
+            print ("height <= 800")
+
+        # Taking a matrix of size n,n as the kernel 
+        kernel = np.ones((kernelSizeRow, kernelSizeCol), np.uint8)            
 
         #dilation
-        dilationImage = cv2.dilate(adaptThresImage, kernel, iterations=1)
+        dilationImage = cv2.dilate(adaptThresImage, kernel, iterations = iterationValue)
         self.showImage("Dilation Image", dilationImage)
 
         #erosion
-        erosionImage = cv2.erode(dilationImage, kernel, iterations=1)
+        erosionImage = cv2.erode(dilationImage, kernel, iterations = iterationValue)
         self.showImage("Erosion Image", erosionImage)
 
         return erosionImage
@@ -225,7 +243,7 @@ class ImageConversion:
     
 #-----------------------------------------
 
-name = "1.jpg"
+name = "3.jpg"
 path = "./" + name
 
 # create an ImageConversion object
