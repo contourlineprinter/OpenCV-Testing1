@@ -1,7 +1,6 @@
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-import sys
 
 class ImageConversion:    
     "Class to perform image conversion to contour, svg, and robot instructions\n"
