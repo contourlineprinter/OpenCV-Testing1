@@ -143,13 +143,6 @@ class ImageConversion:
             # Gaussian Blur
             blurImage = cv2.GaussianBlur(image,(5,5),0)
             self.showImage("Blur Image", blurImage)
-
-            # sharpen image
-            kernel = np.array([[-1,-1,-1],
-                                [-1, 9,-1],
-                                [-1,-1,-1]])
-            sharpImage = cv2.filter2D(blurImage, -1, kernel) # applying the sharpening kernel to the input image & displaying it.
-            self.showImage("Sharpen Image", sharpImage)
                 
             # adaptive threshold
             # image, max pixel value, type of threshold,
@@ -160,24 +153,25 @@ class ImageConversion:
             self.showImage("Threshold Image", adaptThresImage)
 
             height, width = image.shape[:2]         # get image size
-            
-            if (height > 900):                      # if height is greater than 800
-                kernelSizeRow = 4                   # kernel size - 4 rows
-                kernelSizeCol = 4                   # kernel size - 4 columns
-                iterationValue = 6                  # do 6 iterations
-                print ("height > 800")
-            elif (height > 1300) or (width > 1300): # if height or width is greater than 1300
-                kernelSizeRow = 5                   # kernel size - 6 rows
-                kernelSizeCol = 5                   # kernel size - 6 columns
-                iterationValue = 7                  # do 7 iterations
-                print ("height > 1300")
-            else:                                   # for images of other size
+
+            # determine kernel size and iteration by image size            
+            if (height <= 800):                     # if height is less than or equal to 800
                 kernelSizeRow = 3                   # kernel size - 3 rows
                 kernelSizeCol = 3                   # kernel size - 3 columns
                 iterationValue = 1                  # do 1 iteration
                 print ("height <= 800")
+            elif (height < 1600):                   # if height is less than 1600
+                kernelSizeRow = 4                   # kernel size - 4 rows
+                kernelSizeCol = 4                   # kernel size - 4 columns
+                iterationValue = 4                  # do 4 iterations
+                print ("height < 1600")
+            else:                                   # if height is greater than or equal to 1600
+                kernelSizeRow = 5                   # kernel size - 5 rows
+                kernelSizeCol = 5                   # kernel size - 5 columns
+                iterationValue = 5                  # do 6 iteration
+                print ("height >= 1600")
 
-            # Taking a matrix of size n,n as the kernel 
+            # taking a matrix of size n,n as the kernel 
             kernel = np.ones((kernelSizeRow, kernelSizeCol), np.uint8)            
 
             #dilation
@@ -208,18 +202,24 @@ class ImageConversion:
     #   smaller range - more points, more lines in the image 
     #   larger range - less points, less lines in the image
     # parameters: image, range for x, range for y, line thickness in pixel
-    # return: new contour image
+    # return: new contour image, old contour image
     def createContours(self, image, lineThickness = 2):
         try:
-            # find countour
-            contours, hierarchy = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-            
-            print("Found %d objects in intial contour list." % len(contours)) # length of the contour list
+            contours, hierarchy = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)   # find countour
+            print("Found %d objects in intial contour list." % len(contours))                       # length of the contour list
 
             height, width = image.shape[:2]     # get image size
-
+            
             pointC = []                         # new set of points
-            self.filterPoints(contours, pointC) # filter points
+
+            # filter points by size of image
+            if (height <= 800):                     # if height is less than or equal to 800
+                self.filterPoints(contours, pointC) # filter points
+            elif (height < 1600):                   # if height is less than 1600
+                self.filterPoints(contours, pointC, 10, 10, 600) # filter points
+            else:                                   # for images greater than or equal to 1600
+                self.filterPoints(contours, pointC, 15, 15, 1200) # filter points
+                
             newContours = np.array([pointC])    # make a numpy array with the new points for contour image
 
             #don't sort - doesn't work?
@@ -233,25 +233,43 @@ class ImageConversion:
 
             self.showTwoImages(imageContourOld, imageContourNew, "Contour Old", "Contour New")
 
-            return imageContourNew
+            return imageContourNew, imageContourOld
 
         except Exception as e:
             print("Error: There is a problem with creating the contour image - \n" + e.args[0] ) 
 #-----------------------------------------
-    # filter contour points based on specific range of x and y coordinates
+    # filter contour points based on minimum areas and specific range of x and y coordinates
     # range is used to filter out some points in contour image:
     #   smaller range - more points, more lines in the image 
     #   larger range - less points, less lines in the image
-    # parameters: set of points that make up contour, range for x, range for y, line thickness in pixel
-    def filterPoints(self, contourPoints, newContourPoints, rangeForX = 5, rangeForY = 5):
+    # parameters: set of points that make up contour, range for x, range for y, minimum contour area accepted 
+    def filterPoints(self, contourPoints, newContourPoints, rangeForX = 8, rangeForY = 8, minContourArea = 200):
         try:
+            contoursToDelete = [] # list of indexes of contours to delete
+            
+            print("Inital Number of Objects: ", len(contourPoints))
+
+            # look for the contours that don't fit the minimum area requirement
+            for i in range(len(contourPoints)):
+                
+                contourArea = cv2.contourArea(contourPoints[i]) # find contour area
+
+                # if the contour area is less than the minimum contour area
+                if(contourArea < minContourArea):
+                    contoursToDelete.append(i)  # save the index of that contour
+
+            # delete all the contours that don't meet the area requirement
+            contourPoints = np.delete(contourPoints, contoursToDelete)
+                
+            print("Inital Number of Objects: ", len(contourPoints))
+            
             # set up things for processing points in contour
             x = y = []
             xsave = -1
             ysave = -1
             count = 0
 
-            # process points in contour - remove some
+            # process points in contour - remove some points based on x and y ranges
             for i in contourPoints:
                 for j in i:
                     for k in j:
@@ -299,7 +317,7 @@ img = imgConvert1.readImageOriginal(name)
 imgGray = imgConvert1.readImageGrayscale(name)
 
 # show image
-#imgConvert1.showImage("Original Image", img)
+imgConvert1.showImage("Original Image", img)
 #imgConvert1.showImage("Gray Image", imgGray)
 
 # show two images - original and gray
@@ -314,13 +332,16 @@ edgeImg = imgConvert1.getEdges(eroImg)
 imgConvert1.showImage("Edge Image", edgeImg)
 
 # find contour lines using Canny edges
-conImgEdge = imgConvert1.createContours(edgeImg)
+conImgEdge, conImgEdgeOld = imgConvert1.createContours(edgeImg)
 
 # find contour lines not using Canny edges
-conImgNoEdge = imgConvert1.createContours(eroImg2)
+conImgNoEdge, conImgNoEdgeOld = imgConvert1.createContours(eroImg2)
 
-# compare two images - using edge pic and not using edge pic
-imgConvert1.showThreeImages(img, conImgEdge, conImgNoEdge, "Original Image", "Contour with Canny", "Contour without Canny")
+# compare three images - using Canny contour pic and not using Canny edge pic
+#imgConvert1.showThreeImages(img, conImgEdge, conImgNoEdge, "Original Image", "Contour with Canny", "Contour without Canny")
+
+# compare three images - original, edges found, final contour image 
+imgConvert1.showThreeImages(img, conImgNoEdgeOld, conImgNoEdge, "Original", "Edges Found", "Final Contour")
 
 # close all windows
-#imgConvert1.closeAllWindows()
+imgConvert1.closeAllWindows()
