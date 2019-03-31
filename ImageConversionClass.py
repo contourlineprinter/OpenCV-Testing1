@@ -233,8 +233,9 @@ class ImageConversion:
             newContours = np.array([pointC])                    # make a numpy array with the new points for contour image
 
             # make svg of contour
-            nameSVG = self.origImgName + "_SVG"    # set svg filename
-            self.drawSVG(newContours, height, width, nameSVG)               # draw it in the svg
+            nameSVG = self.origImgName + "_SVG"                     # set filename for svg file
+            path = "./"                                             # set directory path for svg file
+            self.drawSVG(newContours, height, width, nameSVG, path) # draw it in the svg
 
             #don't sort - doesn't work?
             #vec = np.sort(np.array([pointC]))
