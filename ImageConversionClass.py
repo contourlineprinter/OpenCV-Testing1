@@ -1,9 +1,12 @@
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+import svgwrite
+import os, sys
 
 class ImageConversion:    
     "Class to perform image conversion to contour, svg, and robot instructions\n"
+    
 #-----------------------------------------
     # constructor
     # parameters: orignal image name, orignal image path
@@ -21,7 +24,7 @@ class ImageConversion:
                 "Image Path: %s \n" % (self.origImgName, self.origImgPath))
             
         except Exception:
-            print("Error: There is a problem printing out the information.")
+            print("Error: There is a problem printing out the information.")  
 #-----------------------------------------
     # read in an image in with original colors
     # parameter: image filename (if in current directory) or image path
@@ -142,8 +145,8 @@ class ImageConversion:
         try:
             # Gaussian Blur
             blurImage = cv2.GaussianBlur(image,(5,5),0)
-            self.showImage("Blur Image", blurImage)
-            cv2.moveWindow("Blur Image",0,0)
+            #self.showImage("Blur Image", blurImage)
+            #cv2.moveWindow("Blur Image",0,0)
                 
             # adaptive threshold
             # image, max pixel value, type of threshold,
@@ -151,8 +154,8 @@ class ImageConversion:
             # mean subtraction from the end result
             # only the threshold picture
             adaptThresImage = cv2.adaptiveThreshold(blurImage, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 295, 1)
-            self.showImage("Threshold Image", adaptThresImage)
-            cv2.moveWindow("Threshold Image",300,0)
+            #self.showImage("Threshold Image", adaptThresImage)
+            #cv2.moveWindow("Threshold Image",300,0)
 
             height, width = image.shape[:2]         # get image size
 
@@ -178,14 +181,14 @@ class ImageConversion:
 
             #dilation
             dilationImage = cv2.dilate(adaptThresImage, kernel, iterations = iterationValue)
-            self.showImage("Dilation Image", dilationImage)
-            cv2.moveWindow("Dilation Image",600,0)
+            #self.showImage("Dilation Image", dilationImage)
+            #cv2.moveWindow("Dilation Image",600,0)
 
 
             #erosion
             erosionImage = cv2.erode(dilationImage, kernel, iterations = iterationValue)
-            self.showImage("Erosion Image", erosionImage)
-            cv2.moveWindow("Erosion Image",900,0)
+            #self.showImage("Erosion Image", erosionImage)
+            #cv2.moveWindow("Erosion Image",900,0)
 
             return erosionImage
         
@@ -202,7 +205,7 @@ class ImageConversion:
         except Exception as e:
             print("Error: There is a problem with getting the edges with Canny - \n" + e.args[0] ) 
 #-----------------------------------------
-    # find the contour of the image based on specific range of x and y coordinates
+    # find the contour of the image based on specific range of x and y coordinates and save as svg file
     # range is used to filter out some points in contour image:
     #   smaller range - more points, more lines in the image 
     #   larger range - less points, less lines in the image
@@ -227,7 +230,11 @@ class ImageConversion:
             else:                                   # for images greater than or equal to 1600
                 self.filterPoints(contours, pointC, 15, 15, 1200) # filter points
                 
-            newContours = np.array([pointC])    # make a numpy array with the new points for contour image
+            newContours = np.array([pointC])                    # make a numpy array with the new points for contour image
+
+            # make svg of contour
+            nameSVG = self.origImgName + "SVG"                  # set svg filename
+            self.drawSVG(newContours, height, width, nameSVG)   # draw it in the svg
 
             #don't sort - doesn't work?
             #vec = np.sort(np.array([pointC]))
@@ -238,7 +245,7 @@ class ImageConversion:
             imageContourOld = cv2.drawContours(blankCanvas1, contours, -1, (0,255,0), lineThickness)        # draw the contour image with old point
             imageContourNew = cv2.drawContours(blankCanvas2, newContours, -1, (0,255,0), lineThickness)     # draw the contour image with new point
 
-            self.showTwoImages(imageContourOld, imageContourNew, "Contour Old", "Contour New")
+            #self.showTwoImages(imageContourOld, imageContourNew, "Contour Old", "Contour New")
 
             return imageContourOld, imageContourNew, newContours
 
@@ -309,3 +316,74 @@ class ImageConversion:
         except Exception as e:
             print("Error: There is a problem with filtering the points - \n" + e.args[0] ) 
 #-----------------------------------------
+    # write a svg file with all the contour points found in the original image
+    # parameters: the list of sequence of contour points, height of image, width of image, image name, directory of svg file
+    def drawSVG(self, contourPoints, height, width, name = "contourSVG", path = "./"):
+        try:
+
+            # make sure the path is a path
+            if !(path.endswith("/")):
+                path = path + "/"
+
+            # set up for svg
+            extension = ".svg"  # extension for svg
+            number = getNextFileNumber(path, name, extension) # get the next file number
+            
+            #create a svg file
+            dwg = svgwrite.Drawing(path+name+number+extension, size=(width, height))
+            shapes = dwg.add(dwg.g(id="shapes", fill="none"))
+            
+            #interatively write points into the svg file
+            lengthOfTheList = len(contourPoints[0]) - 1
+            for x in range(lengthOfTheList):
+                print(contourPoints[0][x][0],contourPoints[0][x][1],contourPoints[0][x+1][0],contourPoints[0][x+1][1])
+                shapes.add(dwg.line(start = (str(contourPoints[0][x][0]), str(contourPoints[0][x][1])), 
+                                 end = (str(contourPoints[0][x+1][0]),str(contourPoints[0][x+1][1])), 
+                                 stroke=svgwrite.rgb(10, 10, 16, "%")
+                ))
+            
+            #save the file
+            dwg.save()       
+            
+        except Exception as e:
+            print("Error: There is a problem with writing a svg file - \n" + e.args[0] ) 
+#-----------------------------------------
+    # get the next highest number in filename
+    # parameters: directory path where file is located, name of the file to look for, extension of the file to look for
+    # return the next highest number in filename
+    def getNextFileNumber(self, path = "./", name = "", extension = ""):
+        try:
+
+            # return the value of 1 if the name and/or the extension is/are not found
+            if name is None or extension is None:
+                print("Error: Name and/or extension cannot be found")
+                return 1
+
+            # make sure the path is a path
+            if !(path.endswith("/")):
+                path = path + "/"
+    
+            highest = -1    # the highest number, intialized to -1
+
+            # open the directory
+            dirs = os.listdir(path)
+
+            # print all the files and directories in the path
+            for file in dirs:
+                # print (file)
+                
+                #if filename exists and contains numbers at the end, check the number
+                if name in file[:len(name)] \
+                and file.endswith(extension) \
+                and file[len(name):len(file)-len(extension)].isdigit():
+                    digitFound = int(file[len(name):len(file)-len(extension)])  # save the number as digit found
+                    print("Digit found: ", digitFound) 
+                    if digitFound > highest:                      # if the digit found is greater than the highest number
+                        highest = digitFound                      # set as the new highest number
+
+            highest+=1 # increment count at the end for new file        
+            print("New highest number: ", highest)
+            return highest
+
+        except Exception as e:
+            print("Error: There is a problem with getting the next file number - \n" + e.args[0] ) 
