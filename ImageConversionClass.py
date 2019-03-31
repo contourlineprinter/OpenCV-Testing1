@@ -233,8 +233,8 @@ class ImageConversion:
             newContours = np.array([pointC])                    # make a numpy array with the new points for contour image
 
             # make svg of contour
-            nameSVG = self.origImgName + "SVG"                  # set svg filename
-            self.drawSVG(newContours, height, width, nameSVG)   # draw it in the svg
+            nameSVG = self.origImgName + "_SVG"    # set svg filename
+            self.drawSVG(newContours, height, width, nameSVG)               # draw it in the svg
 
             #don't sort - doesn't work?
             #vec = np.sort(np.array([pointC]))
@@ -318,16 +318,16 @@ class ImageConversion:
 #-----------------------------------------
     # write a svg file with all the contour points found in the original image
     # parameters: the list of sequence of contour points, height of image, width of image, image name, directory of svg file
-    def drawSVG(self, contourPoints, height, width, name = "contourSVG", path = "./"):
+    def drawSVG(self, contourPoints, height, width, name = "contour_SVG", path = "./"):
         try:
 
             # make sure the path is a path
-            if !(path.endswith("/")):
+            if not path.endswith("/"):
                 path = path + "/"
 
             # set up for svg
             extension = ".svg"  # extension for svg
-            number = getNextFileNumber(path, name, extension) # get the next file number
+            number = str(self.getNextFileNumber(path, name, extension)) # get the next file number
             
             #create a svg file
             dwg = svgwrite.Drawing(path+name+number+extension, size=(width, height))
@@ -360,10 +360,10 @@ class ImageConversion:
                 return 1
 
             # make sure the path is a path
-            if !(path.endswith("/")):
+            if not path.endswith("/"):
                 path = path + "/"
     
-            highest = -1    # the highest number, intialized to -1
+            highest = 0    # the highest number, intialized to 0
 
             # open the directory
             dirs = os.listdir(path)
@@ -378,8 +378,8 @@ class ImageConversion:
                 and file[len(name):len(file)-len(extension)].isdigit():
                     digitFound = int(file[len(name):len(file)-len(extension)])  # save the number as digit found
                     print("Digit found: ", digitFound) 
-                    if digitFound > highest:                      # if the digit found is greater than the highest number
-                        highest = digitFound                      # set as the new highest number
+                    if digitFound > highest:                                    # if the digit found is greater than the highest number
+                        highest = digitFound                                    # set as the new highest number
 
             highest+=1 # increment count at the end for new file        
             print("New highest number: ", highest)
