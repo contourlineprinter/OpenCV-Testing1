@@ -341,6 +341,8 @@ class ImageConversion:
             dwg = svgwrite.Drawing(path+name+number+extension, size=(width, height))
             shapes = dwg.add(dwg.g(id="shapes", fill="none"))
             
+            shapes.add(dwg.line(start = ('0','0'), end = ('0','0'), stroke=svgwrite.rgb(10, 10, 16, "%")))
+            
             #interatively write points into the svg file
             print("before writing points to svg file")
             lengthOfTheList = len(contourPoints[0]) - 1
