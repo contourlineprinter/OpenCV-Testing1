@@ -330,8 +330,8 @@ class ImageConversion:
         try:
 
             # make sure the path is a path
-##            if not path.endswith("/"):
-##                path = path + "/"
+            if not path.endswith("/"):
+                path = path + "/"
 
             # set up for svg
             extension = ".svg"  # extension for svg
