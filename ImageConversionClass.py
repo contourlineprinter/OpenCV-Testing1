@@ -382,7 +382,7 @@ class ImageConversion:
 
             # make svg of contour - ROOT/next
             nameSVG2 = "imageSVG"                                           # set filename for svg file
-            path2 = "/var/lib/tomcat8/webapps/ROOT/conversion/next"         # set directory path for svg file
+            path2 = "/var/lib/tomcat8/webapps/ROOT/next"         # set directory path for svg file
 
             # if folder for svg doesn't exist
             if not os.path.exists(path2):
@@ -553,9 +553,9 @@ class ImageConversion:
                 #print("Sort", i)
             print(orderElement)
 
-            print("Before: ", contourPoints[3])
+            #print("Before: ", contourPoints[3])
             contourPoints = contourPoints[orderElement] # order the elements
-            print("After: ", contourPoints[3])
+            #print("After: ", contourPoints[3])
             
             return contourPoints
 
