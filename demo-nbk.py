@@ -5,32 +5,35 @@ import os, sys
 from ImageConversionClass import ImageConversion
 
 #-----------------------------------------         
-image = "2.png"
+#image = "2.png"
+image = "2.jpg"
+#image = "water.jpg"
 svg = "./"
 
 # create an ImageConversion object
-imgConvert1 = ImageConversion(image, svg)
+imgConvert = ImageConversion(image, svg)
 
 # print class documentation
 #print ("ImageConversion.__doc__:", ImageConversion.__doc__)
 
 # print info
-imgConvert1.printImgInfo()
+imgConvert.printImgInfo()
 
 # load in image
 #imgGray = imgConvert1.readImageGrayscale(image) # turn on for regular
-img = imgConvert1.readImageOriginal(image) # turn on for background removal
+img = imgConvert.readImageOriginal(image) # turn on for background removal
 
 # show image
 #imgConvert1.showImage("Original Image", img)
 
 # get image ready
 #eroImg = imgConvert1.getImageReady(imgGray)     # regular
-eroImg = imgConvert1.getImageReadyNoBackground(img) # background removal - need orig image
+eroImg = imgConvert.getImageReadyNoBackground(img) # background removal - need orig image
+imgResize = imgConvert.resizeImageByHeightAndWidth(eroImg, None, None, desiredImgHeight = 400, desiredImgWidth = None)
 
 
 # find contour lines
-conImgNoEdgeOld, conImgNoEdge, conNoEdgePoints = imgConvert1.createContours(eroImg)
+conImgNoEdgeOld, conImgNoEdge, conNoEdgePoints = imgConvert.createContours(imgResize)
 
 # compare three images - original, edges found, final contour image 
 #imgConvert1.showThreeImages(img, conImgNoEdgeOld, conImgNoEdge, "Original", "Edges Found", "Final Contour")

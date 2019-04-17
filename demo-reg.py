@@ -23,7 +23,7 @@ imgConvert.printImgInfo()
 imgGray = imgConvert.readImageGrayscale(image) # turn on for regular
 #img = imgConvert1.readImageOriginal(image) # turn on for background removal
 
-imgResize = imgConvert.resizeImageByHeightAndWidth(imgGray, None, None, desiredImgHeight = 500, desiredImgWidth = None)
+imgResize = imgConvert.resizeImageByHeightAndWidth(imgGray, None, None, desiredImgHeight = 400, desiredImgWidth = None)
 
 # print info
 imgConvert.printImgInfo()
