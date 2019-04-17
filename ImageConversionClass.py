@@ -449,7 +449,7 @@ class ImageConversion:
             # make svg of contour - for gallery
             nameSVG = str(ntpath.basename(self.origImg))                  # set filename for svg file
             path = self.svgPath                                             # set directory path for svg file
-            #self.drawSVG(newContours, height, width, nameSVG, path, 2)      # draw it in the svg
+            self.drawSVG(newContours, height, width, nameSVG, path, 2)      # draw it in the svg
 
             # make svg of contour - ROOT/next
             nameSVG2 = "imageSVG"                                           # set filename for svg file
@@ -461,7 +461,7 @@ class ImageConversion:
 ##                print("A new folder will be created")
 ##                os.makedirs(path2)
 
-            #self.drawSVG(newContours, height, width, nameSVG2, path2, 2)    # draw it in the svg            
+            self.drawSVG(newContours, height, width, nameSVG2, path2, 2)    # draw it in the svg            
 
             #don't sort - doesn't work?
             #vec = np.sort(np.array([pointC]))
@@ -703,21 +703,26 @@ class ImageConversion:
 
 
                 deleteChildren = []
-                startChildIndex = 3
+                #startChildIndex = 3
 
                 # get the children to be deleted
                 for i in parentChild:
                     for j in i:
                         for k in range(len(j)):
-    ##                        if len(j) <= 3:
-    ##                            startChildIndex = 2
-    ##                        elif len(j) <= 10:
-    ##                            startChildIndex = 3
+                            if len(j) <= 3:
+                                startChildIndex = 2
+                            elif len(j) <= 10:
+                                startChildIndex = 5
+                            elif len(j) <= 50: 
+                                startChildIndex = 6
+                            elif len(j) <= 100: 
+                                startChildIndex = 8
+                            else: 
+                                startChildIndex = 10
                                 
                             
                             if k >= startChildIndex and j[k] not in deleteChildren:
                                 deleteChildren.append(j[k])
-
                 
                 if deleteChildren:
                     print("\nChildren to delete: ", deleteChildren)
