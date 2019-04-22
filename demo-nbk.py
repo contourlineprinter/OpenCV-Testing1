@@ -8,37 +8,35 @@ from ImageConversionClass import ImageConversion
 #image = "2.png"
 image = "2.jpg"
 #image = "water.jpg"
+#image = "woman.png"
 svg = "./"
+xyRange = -1
+skipPoints = -1
+minArea = -1
 
 # create an ImageConversion object
 imgConvert = ImageConversion(image, svg)
 
-# print class documentation
-#print ("ImageConversion.__doc__:", ImageConversion.__doc__)
+# load in image
+img = imgConvert.readImageOriginal(image) # turn on for background removal
+
+# get height and width of image
+height, width = imgConvert.getImageOrigHeightAndWidth()
 
 # print info
 imgConvert.printImgInfo()
 
-# load in image
-#imgGray = imgConvert1.readImageGrayscale(image) # turn on for regular
-img = imgConvert.readImageOriginal(image) # turn on for background removal
+# if the image is a certain size
+if height >= 300 or width >= 300:
 
-# show image
-#imgConvert1.showImage("Original Image", img)
+    # resize image    
+    img = imgConvert.resizeImageByHeightAndWidth(img, None, None, desiredImgHeight = 200, desiredImgWidth = None)
+
+imgGray = imgConvert.getImageReadyNoBackground(img) # background removal - need orig image
 
 # get image ready
-#eroImg = imgConvert1.getImageReady(imgGray)     # regular
-eroImg = imgConvert.getImageReadyNoBackground(img) # background removal - need orig image
-imgResize = imgConvert.resizeImageByHeightAndWidth(eroImg, None, None, desiredImgHeight = 400, desiredImgWidth = None)
-
+eroImg = imgConvert.getImageReady(imgGray)
 
 # find contour lines
-conImgNoEdgeOld, conImgNoEdge, conNoEdgePoints = imgConvert.createContours(imgResize)
-
-# compare three images - original, edges found, final contour image 
-#imgConvert1.showThreeImages(img, conImgNoEdgeOld, conImgNoEdge, "Original", "Edges Found", "Final Contour")
-
-# close all windows
-#imgConvert1.closeAllWindows()
-
+conImgNoEdgeOld, conImgNoEdge, conNoEdgePoints = imgConvert.createContours(eroImg, 2, xyRange, skipPoints, minArea)
 #-----------------------------------------

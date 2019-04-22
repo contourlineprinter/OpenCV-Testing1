@@ -1,8 +1,10 @@
+# -*- coding: utf-8 -*-
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 import svgwrite
 import os, sys, ntpath, traceback
+import math
 
 class ImageConversion:    
     "Class to perform image conversion to contour, svg, and robot instructions\n"
@@ -54,8 +56,8 @@ class ImageConversion:
         try:
             imgOriginal = cv2.imread(image, 1)          # read in image original colors
             height, width = imgOriginal.shape[:2]       # get height and width
-            self.origHeight = height                    # set height
-            self.origWidth = width                      # set width
+            if height: self.origHeight = height         # set height
+            if width: self.origWidth = width            # set width
             return imgOriginal
         
         except Exception as e:
@@ -69,10 +71,10 @@ class ImageConversion:
     # return: image in grayscale
     def readImageGrayscale(self, image):
         try:
-            imgGray = cv2.imread(image, 0)          # read in image grayscale
-            height, width = imgGray.shape[:2]       # get height and width
-            self.origHeight = height                # set height
-            self.origWidth = width                  # set width
+            imgGray = cv2.imread(image, 0)              # read in image grayscale
+            height, width = imgGray.shape[:2]           # get height and width
+            if height: self.origHeight = height         # set height
+            if width: self.origWidth = width            # set width
             return imgGray
         
         except Exception as e:
@@ -189,61 +191,49 @@ class ImageConversion:
     def removeBackground(self, image):
 
         try:
-            # properties
-            BLUR = 15               # blur size
+            
+            BLUR = 15
             DILATE = 8
             ERODE = 8
             THRESH1 = 15
             THRESH2 = 180
-            COLOR = (1.0, 1.0, 1.0) # mask color
+            COLOR = (1.0, 1.0, 1.0)
 
-            # using canny, dilate and erode together to detect edges
-            if (len(image.shape) == 3):
-                gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            else: gray = image
-            
-            edges = cv2.Canny(gray, THRESH1, THRESH2)
-            edges = cv2.dilate(edges, None)
-            edges = cv2.erode(edges, None)
+            type = 4
 
-            c_info = []
+            x1 = 0.1
+            x2 = 0.9
+            y1 = 0.1
+            y2 = 0.9
 
-            # finding contours
-            contours, hierarchy = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+            # Converting image to rgb
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-            for c in contours:
-                c_info.append((c, cv2.isContourConvex(c), cv2.contourArea(c),))
+            # Finding it's width and height
+            height, width = image_rgb.shape[:2]
 
-            # sorting contours based on area
-            c_info = sorted(c_info, key=lambda c: c[2], reverse=True)
+            # Marking rectangle considering main object to be within this rectangle.
+            rectangle = (int(width*x1), int(height*y1), int(width*x2), int(height*y2))
 
-            # idea is to draw an empty mask
-            # and drawing a filled polygon of largest contour
-            # on it
-            max_contour = c_info[0]
-            image_mask = np.zeros(edges.shape)
-            cv2.fillConvexPoly(image_mask, max_contour[0], (255))
+            # Creating a mask
+            mask = np.zeros(image_rgb.shape[:2], np.uint8)
 
-            # smoothing the mask
-            image_mask = cv2.dilate(image_mask, None, iterations=DILATE)
-            image_mask = cv2.erode(image_mask, None, iterations=ERODE)
-            
-            # applying gaussian blur to the mask
-            image_mask = cv2.GaussianBlur(image_mask, (BLUR, BLUR), 0)
-            mask_stack = np.dstack([image_mask] * 3)
-            mask_stack = mask_stack.astype('float32') / 255.0
-            image = image.astype('float32') / 255.0
+            # Background mask
+            bgdModel = np.zeros((1, 65), np.float64)
 
-            # blending original image with the mask
-            masked = (mask_stack * image) + ((1 - mask_stack) * COLOR)
-            masked = (masked * 255).astype('uint8')
+            # Foreground mask
+            fgdModel = np.zeros((1, 65), np.float64)
 
-            # rewriting image back
-            #cv2.imwrite(formatted_path, masked)
+            # Applying grab cut on the image using rectangle and mask
+            cv2.grabCut(image_rgb, mask, rectangle,bgdModel,fgdModel,5,cv2.GC_INIT_WITH_RECT)
 
-            print("Mask: ", len(masked.shape)) 
+            # Creating another mask where mask=2
+            mask_2 = np.where((mask==2) | (mask==0), 0, 1).astype('uint8')
 
-            return masked
+            # Applying mask on the original image
+            image_rgb_nobg = image_rgb * mask_2[:, :, np.newaxis]
+
+            return image_rgb_nobg        
 
         except Exception as e:
             print("Error: There is a problem with removing the image background - \n" + e.args[0] ) 
@@ -327,6 +317,19 @@ class ImageConversion:
             tb = traceback.extract_tb(exc_tb)[-1]
             print(exc_type, tb[2], tb[1])
 #-----------------------------------------
+    # get original image height and width
+    # return: height and width
+    def getImageOrigHeightAndWidth(self):
+        try:
+
+            return self.origHeight, self.origWidth
+        
+        except Exception as e:
+            print("Error: There is a problem with getting the image height and width - \n" + e.args[0] ) 
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            tb = traceback.extract_tb(exc_tb)[-1]
+            print(exc_type, tb[2], tb[1])
+#-----------------------------------------
     # preprocess the image to find better edges
     # parameter: grayscale image to preprocess (note: image has be this type to work)
     # return: preprocessed image
@@ -406,9 +409,9 @@ class ImageConversion:
             gray = self.turnImageGray(noBackgroundImage)
 
             # get preprocess image
-            edgeImage = self.getImageReady(gray)
+            #edgeImage = self.getImageReady(gray)
     
-            return edgeImage
+            return gray
         
         except Exception as e:
             print("Error: There is a problem with removing the background and preprocessing the image - \n" + e.args[0] ) 
@@ -420,9 +423,9 @@ class ImageConversion:
     # range is used to filter out some points in contour image:
     #   smaller range - more points, more lines in the image 
     #   larger range - less points, less lines in the image
-    # parameters: image, range for x, range for y, line thickness in pixel
+    # parameters: image, line thickness, x and y range, skip points, min area
     # return: old contour image, new contour image, points for new contours
-    def createContours(self, image, lineThickness = 2):
+    def createContours(self, image, lineThickness = 2, xyRange = -1, skipPoints = -1, minArea = -1):
         try:
 
             contours, hierarchy = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)   # find countour
@@ -431,11 +434,11 @@ class ImageConversion:
             print("Found %d objects in intial contour list." % len(contours))                       # length of the contour list
 
             height, width = image.shape[:2]     # get image size
-            
             pointC = []                         # new set of points
 
-            self.filterPoints(contours, pointC, hierarchy, 0, 0) # filter points - no range
-
+            # filter points
+            self.filterPoints(contours, pointC, hierarchy, xyRange, xyRange, skipPoints, minArea) 
+            
             # filter points by size of image
 ##            if (height <= 800):                     # if height is less than or equal to 800
 ##                self.filterPoints(contours, pointC) # filter points
@@ -443,23 +446,35 @@ class ImageConversion:
 ##                self.filterPoints(contours, pointC, 10, 10, 600) # filter points
 ##            else:                                   # for images greater than or equal to 1600
 ##                self.filterPoints(contours, pointC, 15, 15, 1200) # filter points
-##                
+##
+            attempt = 0
+
+            # try again if pointC is empty
+            if len(pointC) == 0 and attempt == 0 :
+                pointC = []
+                self.filterPoints(contours, pointC, hierarchy) # filter points
+                attempt = 1
+                            
             newContours = np.array([pointC])                    # make a numpy array with the new points for contour image
 
+            #print("newContours: ", newContours)
+
             # make svg of contour - for gallery
-            nameSVG = str(ntpath.basename(self.origImg))                  # set filename for svg file
-            path = self.svgPath                                             # set directory path for svg file
+            nameSVG = str(ntpath.basename(self.origImg))                    # set filename for svg file
+            path = str(self.svgPath)                                        # set directory path for svg file
             self.drawSVG(newContours, height, width, nameSVG, path, 2)      # draw it in the svg
 
+            print("got to ROOT/next")
+    
             # make svg of contour - ROOT/next
             nameSVG2 = "imageSVG"                                           # set filename for svg file
             path2 = "/var/lib/tomcat8/webapps/ROOT/next"         # set directory path for svg file
 
             # if folder for svg doesn't exist
-##            if not os.path.exists(path2):
-##                print("Folder doesn't exist for: ", path2)
-##                print("A new folder will be created")
-##                os.makedirs(path2)
+            if not os.path.exists(path2):
+                print("Folder doesn't exist for: ", path2)
+                print("A new folder will be created")
+                os.makedirs(path2)
 
             self.drawSVG(newContours, height, width, nameSVG2, path2, 2)    # draw it in the svg            
 
@@ -472,7 +487,7 @@ class ImageConversion:
             imageContourOld = cv2.drawContours(blankCanvas1, contours, -1, (0,255,0), lineThickness)        # draw the contour image with old point
             imageContourNew = cv2.drawContours(blankCanvas2, newContours, -1, (0,255,0), lineThickness)     # draw the contour image with new point
 
-            self.showTwoImages(imageContourOld, imageContourNew, "Contour Old", "Contour New")
+            #self.showTwoImages(imageContourOld, imageContourNew, "Contour Old", "Contour New")
 
             return imageContourOld, imageContourNew, newContours
 
@@ -578,7 +593,7 @@ class ImageConversion:
 
             minY = setOfPoints[0][0][1]
             xAtMinY = setOfPoints[0][0][0]
-            print("\nStarting min Y: ", minY)
+            #print("\nStarting min Y: ", minY)
            
             # process points in contour - get the last two points
             for j in range(len(setOfPoints)):
@@ -588,7 +603,7 @@ class ImageConversion:
 
                 #print("J - ", setOfPoints[j][0][1])
                 if foundY < minY:
-                    print("New Min Y")
+                    #print("New Min Y")
                     minY = foundY
                     xAtMinY = setOfPoints[j][0][0]
                         
@@ -610,7 +625,7 @@ class ImageConversion:
             for i in range(len(contourPoints)):
 
                 minY, xAtMinY = self.getMinY(contourPoints[i])
-                print("Minimum Found in ", i, ": ", minY)
+                #print("Minimum Found in ", i, ": ", minY)
                 listOfMinYs.append([i, minY, xAtMinY])
 
             print(listOfMinYs)
@@ -622,8 +637,8 @@ class ImageConversion:
             for i in np.argsort(listOfMinYs[:,1]):
                 orderElement.append(i)
                 #print("Sort", i)
-            print("\nOrdered Elements: ", orderElement)
-            print("")
+            #print("\nOrdered Elements: ", orderElement)
+            #print("")
 
             # check for null
             if contourPoints is None:
@@ -646,14 +661,226 @@ class ImageConversion:
             tb = traceback.extract_tb(exc_tb)[-1]
             print(exc_type, tb[2], tb[1])
 #-----------------------------------------
+    # sort the parent, the parent's first child, the first child's first child, etc indices by level in the hierarchy
+    # parameters:   parent, parent level,
+    #               hierarchy [[ [], [], ... , [] ]] ,
+    #               list where sorted results will be located [ [], [], ... , [] ] ,
+    #               list where indices involved will be added to [ , ... , ] .
+    def sortParentFirstChildByLevel(self, parent, level, hierarchy, lvlList, finishList):
+        try:
+
+            # if the level or parent has no value, set to 0
+            if level is None: level = 0
+            if parent is None: parent = 0
+
+            # base case
+            if parent == -1:
+                return
+
+            else:
+                #print("")
+                
+                # go through each element in the hierarchy list
+                for i in hierarchy:
+                    
+                    lvlList[level].append(parent)   # add the parent to the list at index = level
+                    finishList.append(parent)       # add the parent to the finish list - indicate it's been processed
+                    child = i[parent][2]            # get the child of the parent
+                    #print("Child of parent: ", child)   
+                    level+=1                        # increment the level                    
+                    self.sortParentFirstChildByLevel(child, level, hierarchy, lvlList, finishList)    # sort the first child for that child
+
+                return
+
+        except Exception as e:
+            print("Error: There is a problem with soring parent-child by level - \n" + e.args[0] ) 
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            tb = traceback.extract_tb(exc_tb)[-1]
+            print(exc_type, tb[2], tb[1])
+#-----------------------------------------
+    # get the level of the element in the hierarchy
+    # parameters: target element, list to be searched [ [], [], ... , [] ] 
+    # return: level of target element
+    def getLevel(self, target, searchList):
+        try:
+
+            if target is None: target = 0 
+                   
+            # go through each level
+            for i in range(len(searchList)): 
+                #print("\n I", i)
+
+                # for the elements at that level
+                for j in searchList[i]:
+                    #print("\n j target: ", j) 
+
+                    # if the the target is found
+                    if target is j:
+                      
+                        return i # return the level
+                      
+                return 0 # if the target is not found, return level = 0
+
+        except Exception as e:
+            print("Error: There is a problem getting the level of the element - \n" + e.args[0] ) 
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            tb = traceback.extract_tb(exc_tb)[-1]
+            print(exc_type, tb[2], tb[1])
+#-----------------------------------------
+    # get the parent of the element in a list where index = parent and values = children
+    # parameters: target element, list to be searched [[ [], [],..., [] ]] 
+    # return: parent of target element
+    def getParent(self, target, searchList):
+        try:
+
+            if target is None: target = 0
+               
+            # go through list
+            for i in searchList:
+
+                # for each parent in the list
+                for j in range(len(i)):
+                    #print("\n parent target: ", j)
+
+                    # for all the children of that parent
+                    for k in i[j]:
+
+                        # if target element is a child of the parent
+                        if target is k:
+                            return j    # return the value of the parent
+                      
+            return -1   # if the parent is not found, return -1
+
+
+        except Exception as e:
+            print("Error: There is a problem getting the parent of the element - \n" + e.args[0] ) 
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            tb = traceback.extract_tb(exc_tb)[-1]
+            print(exc_type, tb[2], tb[1])
+#-----------------------------------------
+    # get the list of elements sorted by the level in the hiearchy they are in
+    # parameters:   parent-children list where index = parents, values = children -> [[ [], [],..., [] ]] 
+    #               hierarchy from findContours -> [[ [], [],..., [] ]]
+    # return: level list based on hierarchy, index = level, values = elements -> [ [], [],..., [] ]
+    def getHierarchyLevelList(self, parentChildList, hierarchy):
+        try:
+
+            finishList = []
+            lvlList = []
+
+
+            # create a level list to put elements in -> [ [], [],..., [] ]
+            for i in hierarchy:
+                      
+                # create a list with the number of contour elements
+                # level
+                lvlList = [[] for j in range(len(i))] 
+
+
+            # go through parent-child list
+            for i in parentChildList:
+
+                # for each parent
+                for j in range(len(i)):
+
+                    #print("\n X: ", i[j], " at ", j)
+
+                    # if the list is not empty
+                    if i[j]:
+
+                        # for each child of that parent
+                        for k in i[j]:
+
+                            # if the child hasn't been processed
+                            if k not in finishList:
+                                parent = self.getParent(k, parentChildList)  # get parent of the child
+                                level = self.getLevel(parent, lvlList)       # get level of parent
+                                #print("Level of k's parent: ", level)   
+                                #print("Level of k: ", level+1)
+                                self.sortParentFirstChildByLevel(k, level+1, hierarchy, lvlList, finishList)    # sort the child and
+                                                                                                    # first child/descendants
+                                                                                                    # at the next level
+                    #for k in range(len(j)): # children numbers
+
+            # go through hierarchy list
+            for i in hierarchy:
+
+                # for each element
+                for j in range(len(i)):
+
+                    # if j has not been processed
+                    if j not in finishList:
+
+                        finishList.append(j)
+                        parent = self.getParent(k, parentChildList)
+                        level  = self.getLevel(parent, lvlList)
+                        
+                        if j not in lvlList[level]:
+                            lvlList[level].append(j)
+
+
+            return lvlList
+
+        except Exception as e:
+            print("Error: There is a problem getting the hierarchy level list - \n" + e.args[0] ) 
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            tb = traceback.extract_tb(exc_tb)[-1]
+            print(exc_type, tb[2], tb[1])
+#-----------------------------------------
+    # check if the element meets the min area and approx polynomial requirements
+    # parameters:   element to be checked, contour points list, minimum contour area
+    # return: true = 1  or false = 0 depending if element meets requirement
+    def meetMinAreaPolynomialReq(self, target, contourPoints, minContourArea):
+        try:
+            contourArea = cv2.contourArea(contourPoints[target]) # find contour area
+                
+            # we can use this epsilon instead of fixed 2 in approxPolyDP
+            epsilon = 0.001 * cv2.arcLength(contourPoints[target], False)
+            # approx = cv2.approxPolyDP(c, epsilon, True)
+
+            # applying polygon approximation on the current contour.
+            approx2 = cv2.approxPolyDP(contourPoints[target], 2, False)
+
+            # if there are extact four points in the contour, most likely it a sqaure
+            # so ignoring such contour
+            # if the contour area is less than the minimum contour area
+            if (contourArea < minContourArea) or len(approx2) == 4: return 0
+            else: return 1
+
+        except Exception as e:
+            print("Error: There is a problem with the min area - approx polynomial requirements - \n" + e.args[0] ) 
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            tb = traceback.extract_tb(exc_tb)[-1]
+            print(exc_type, tb[2], tb[1])
+#-----------------------------------------
     # filter contour points based on minimum areas and specific range of x and y coordinates
     # range is used to filter out some points in contour image:
     #   smaller range - more points, more lines in the image 
     #   larger range - less points, less lines in the image
-    # parameters: set of points that make up contour, range for x, range for y, minimum contour area accepted
-    def filterPoints(self, contourPoints, newContourPoints, hierarchy, rangeForX = 5, rangeForY = 5, minContourArea = 200):
+    # parameters:   set of points that make up contour, range for x, range for y,
+    #               skip points (negative value = default),  minimum contour area accepted
+    def filterPoints(self, contourPoints, newContourPoints, hierarchy, rangeForX = 5, rangeForY = 5, skipPoints = -1, minContourArea = -1):
         try:
 
+            # find the largest area
+            areaList = max(contourPoints, key = cv2.contourArea)
+            #print("Largest Area", largestArea)
+
+            areaLarge = -1
+            
+            if len(areaList) != 0:
+                for i in areaList:
+                    for j in i:
+                        if areaLarge < j[0] :
+                            areaLarge = j[0]
+
+            print("Largest Area", areaLarge)
+
+            if minContourArea < 0:
+                minContourArea = int(areaLarge/3)
+                print("Min Area", minContourArea)
+            if rangeForX < 0: rangeForX = 5
+            if rangeForY < 0: rangeForY = 5
 
             # hierarchy
             # - info about the image topology
@@ -669,7 +896,7 @@ class ImageConversion:
             
             #print(hierarchy[[0,1,2,3]])
             #print("Contours: ", contours)
-            print("Hierarchy: ", hierarchy)
+            #print("Hierarchy: ", hierarchy)
 
             
             parentChild = [] # parent-child list
@@ -677,7 +904,7 @@ class ImageConversion:
             # organize hierarchy info - get the parents and all children
             for i in hierarchy:
 
-                print("I length: ", len(i))
+##                print("I length: ", len(i))
 
                 l = [[] for j in range(len(i))] # create a list with the number of contour elements
 
@@ -693,7 +920,7 @@ class ImageConversion:
                         
                         child = j               # get the child
                         parent = i[j][3]        # get the parent
-                        print("Parent found: ", parent, " at child : ", child)   
+##                        print("Parent found: ", parent, " at child : ", child)   
                         l[parent].append(child) # add to list -> index = parent, value = child
                         
                 parentChild.append(l) # add the results to parent-child list
@@ -702,35 +929,79 @@ class ImageConversion:
                 print("\nParent-Child List: ", parentChild, "\n")
 
 
-                deleteChildren = []
-                #startChildIndex = 3
+            # get hierarchy level
+            lvlList = self.getHierarchyLevelList(parentChild, hierarchy)
+            print("Level List: ", lvlList)
 
-                # get the children to be deleted
-                for i in parentChild:
-                    for j in i:
-                        for k in range(len(j)):
-                            if len(j) <= 3:
-                                startChildIndex = 2
-                            elif len(j) <= 10:
-                                startChildIndex = 5
-                            elif len(j) <= 50: 
-                                startChildIndex = 6
-                            elif len(j) <= 100: 
-                                startChildIndex = 8
-                            else: 
-                                startChildIndex = 10
-                                
-                            
-                            if k >= startChildIndex and j[k] not in deleteChildren:
-                                deleteChildren.append(j[k])
+
+            deleteChildren = []
+            #startChildIndex = 3
+
+            # for each level
+            for i in range(len(lvlList)): # [, , ]
+
+                if lvlList[i]:
+
+                    # if the level contains values and if level > 1
+                    if i == 1 :
+                        for j in range(len(lvlList[i])):
+                            #if j > 5 and lvlList[i][j]:
+                            if lvlList[i][j]:
+                                 
+                                get = lvlList[i][j]
+
+                                # if the contour element doesn't meet the min area and contour Points requirement
+                                if self.meetMinAreaPolynomialReq(get, contourPoints, minContourArea) == 0:
+                                    deleteChildren.append(get) # add the children to be deleted
                 
-                if deleteChildren:
-                    print("\nChildren to delete: ", deleteChildren)
-                    print("")
+                    elif i > 1:
 
-                    # delete the children conours
-                    contourPoints = np.delete(contourPoints, deleteChildren)
+                        #print("To be deleted I: ", i)
+                    
+                        for j in range(len(lvlList[i])):
+                            if lvlList[i][j]:
+                                get = lvlList[i][j]
+                                deleteChildren.append(get) # add the children to be deleted
+                        
 
+##            # get the children to be deleted
+##            for i in parentChild:
+##                for j in i:
+##                    
+##                    #startChildIndex = int(len(j)/2)
+##                    #print("Length: ", startChildIndex)
+##
+##                    for k in range(len(j)):
+##                        if len(j) <= 3:
+##                            #startChildIndex = 2
+##                            continue
+##                        elif len(j) > 10:
+##                            startChildIndex = 5
+##                        elif len(j) > 50: 
+##                            startChildIndex = 6
+##                        elif len(j) > 100: 
+##                            startChildIndex = 8
+##                        elif len(j) > 500: 
+##                            startChildIndex = 10
+##                        
+##                        
+##                        if k >= startChildIndex and j[k] not in deleteChildren:
+##                            deleteChildren.append(j[k])
+
+##            
+##            if deleteChildren:
+##                print("\nChildren to delete: ", deleteChildren)
+##                print("")
+
+##                # delete the children conours
+##                contourPoints = np.delete(contourPoints, deleteChildren)
+
+            if deleteChildren:
+                contourPoints = np.delete(contourPoints, deleteChildren)
+                deleteChildren = np.array(deleteChildren)
+                print("\nChildren to delete: ", deleteChildren)
+                print("")
+#----------------------------------------------------------------------------
 ##            contoursToDelete = []
 ##            
 ##            for i in range(len(hierarchy)):
@@ -756,30 +1027,29 @@ class ImageConversion:
             contoursToDelete = [] # list of indexes of contours to delete
             print("Inital Number of Objects: ", len(contourPoints))
             origObjCount = self.countPoints(contourPoints)
+
+            # testing min contourArea
+##            minContourArea = max(contourPoints, key = cv2.contourArea)/10
+##            print(minContourArea)
+
+            
             
             # look for the contours that don't fit the minimum area requirement
             for i in range(len(contourPoints)):
                 
-                contourArea = cv2.contourArea(contourPoints[i]) # find contour area
-                
-                # we can use this epsilon instead of fixed 2 in approxPolyDP
-                epsilon = 0.001 * cv2.arcLength(contourPoints[i], False)
-                # approx = cv2.approxPolyDP(c, epsilon, True)
-                
-                # applying polygon approximation on the current contour.
-                approx2 = cv2.approxPolyDP(contourPoints[i], 2, False)
-                
-                # if there are extact four points in the contour, most likely it a sqaure
-                # so ignoring such contour
-                # if the contour area is less than the minimum contour area
-                if(contourArea < minContourArea) or len(approx2) == 4:
-                    contoursToDelete.append(i)  # save the index of that contour
+                    # if the contour element doesn't meet the min area and contour Points requirement
+                    if self.meetMinAreaPolynomialReq(i, contourPoints, minContourArea) == 0:
+                        contoursToDelete.append(i)  # save the index of that contour
 
             # if the first contour element isn't in the deleted index, add it
             #if 0 not in contoursToDelete: contoursToDelete.append(0)
 
+##            for i in deleteChildren:
+##                if i not in contoursToDelete:
+##                    contoursToDelete.append(i)
+
             if contoursToDelete:
-                print("Contours to delete reached")
+                print("Contours to delete reached: " , contoursToDelete)
                 # delete all the contours that don't meet the requirements
                 contourPoints = np.delete(contourPoints, contoursToDelete)
                 #contourPoints = np.delete(contourPoints, 0) # delete the first contour element - polygon takes care of this
@@ -830,27 +1100,32 @@ class ImageConversion:
                 
 #---------------------------------------
                     
-                # testing skipping points
-                if len(contourPoints[i] > 500):
-                    pointsToSkip = int(len(contourPoints[i])/10)
-
-                elif len(contourPoints[i] <= 500) and len(contourPoints[i] > 250):
-                    
-                    pointsToSkip = int(len(contourPoints[i])/10)
-
-                elif len(contourPoints[i] <= 250) and len(contourPoints[i] > 125):
-                    
-                    pointsToSkip = int(len(contourPoints[i])/10)
-
-                elif len(contourPoints[i] <= 125) and len(contourPoints[i] > 62):
-                    
-                    pointsToSkip = int(len(contourPoints[i])/10)
+                # if points to skip is -1, use default mode
+                if skipPoints < 0:
                 
-                elif len(contourPoints[i] <= 62) and len(contourPoints[i] > 31):
-                    
-                    pointsToSkip = int(len(contourPoints[i])/10)
-                    
-                else: pointsToSkip = int(len(contourPoints[i])/20)
+                        # testing skipping points
+                        if len(contourPoints[i] > 500):
+                            pointsToSkip = int(len(contourPoints[i])/10)
+
+                        elif len(contourPoints[i] <= 500) and len(contourPoints[i] > 250):
+                            
+                            pointsToSkip = int(len(contourPoints[i])/10)
+
+                        elif len(contourPoints[i] <= 250) and len(contourPoints[i] > 125):
+                            
+                            pointsToSkip = int(len(contourPoints[i])/10)
+
+                        elif len(contourPoints[i] <= 125) and len(contourPoints[i] > 62):
+                            
+                            pointsToSkip = int(len(contourPoints[i])/10)
+                        
+                        elif len(contourPoints[i] <= 62) and len(contourPoints[i] > 31):
+                            
+                            pointsToSkip = int(len(contourPoints[i])/10)
+                            
+                        else: pointsToSkip = int(len(contourPoints[i])/20)
+
+                else: pointsToSkip = skipPoints
 
                 #pointsToSkip = int(len(contourPoints[i])/5)
 ##                print("\nLength of Contour Points[i]: ", len(contourPoints[i]))
@@ -926,14 +1201,15 @@ class ImageConversion:
         try:
 
             path = str(path)
+            print("::", path)  
 
             # make sure the path is ready
             if "/" in path:
                 if not path.endswith("/"):
-                    path = path + "/"
+                    path = str(path) + "/"
             elif "\\" in path:
                 if not path.endswith("\\"):
-                    path = path + "\\"
+                    path = str(path) + "\\"
             else: path = "./"
                                      
 
@@ -959,26 +1235,41 @@ class ImageConversion:
             
             #create a svg file
             #print("SVG to: ", str(path+name+number+extension))
+            
+            #percentage of resizing
+            if (self.origHeight != -1 or self.origWidth != -1):
+                percentx = self.origWidth * 100/width
+                percenty = self.origHeight * 100/height
+                height = self.origHeight
+                width = self.origWidth
+            else:
+                percentx = 100
+                percenty = 100
+
             dwg = svgwrite.Drawing(location, size=(width, height))
             shapes = dwg.add(dwg.g(id="shapes", fill="none"))
-
-            #add a starting point
-            shapes.add(dwg.line(start = ('0',str(height)), 
-                             end = (str(contourPoints[0][0][0]),str(contourPoints[0][0][1])), 
-                             stroke=svgwrite.rgb(10, 10, 16, "%")
-            ))
+            
+            print("percentx and percenty: ", percentx, percenty)
             
             #interatively write points into the svg file
             lengthOfTheList = len(contourPoints[0]) - 1
             for x in range(lengthOfTheList):
                 #print(contourPoints[0][x][0],contourPoints[0][x][1],contourPoints[0][x+1][0],contourPoints[0][x+1][1])
-                shapes.add(dwg.line(start = (str(contourPoints[0][x][0]), str(contourPoints[0][x][1])), 
-                                 end = (str(contourPoints[0][x+1][0]),str(contourPoints[0][x+1][1])), 
-                                 stroke=svgwrite.rgb(10, 10, 16, "%")
-                ))
+                #shapes.add(dwg.line(start = (str(contourPoints[0][x][0]), str(contourPoints[0][x][1])), 
+                #                 end = (str(contourPoints[0][x+1][0]),str(contourPoints[0][x+1][1])), 
+                #                 stroke=svgwrite.rgb(10, 10, 16, "%")
+                #))
+                x1 = math.floor(contourPoints[0][x][0] * percentx/100)           #resize x1
+                x2 = math.floor(contourPoints[0][x+1][0] * percentx/100)         #resize x2
+                y1 = math.floor(contourPoints[0][x][1] * percenty/100)           #resize y1
+                y2 = math.floor(contourPoints[0][x+1][1] * percenty/100)         #resize y2
+                shapes.add(dwg.line(start = (str(x1), str(y1)), 
+                    end = (str(x2),str(y2)), 
+                    stroke=svgwrite.rgb(10, 10, 16, "%")
+                ))                
             
             #save the file
-            dwg.save()       
+            dwg.save()
             
         except Exception as e:
             print("Error: There is a problem with writing a svg file - \n" + e.args[0] )

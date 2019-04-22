@@ -8,41 +8,34 @@ from ImageConversionClass import ImageConversion
 #image = "2.png"
 image = "2.jpg"
 #image = "water.jpg"
+#image = "woman.png"
 svg = "./"
+xyRange = -1
+skipPoints = -1
+minArea = -1
 
 # create an ImageConversion object
 imgConvert = ImageConversion(image, svg)
-
-# print class documentation
-#print ("ImageConversion.__doc__:", ImageConversion.__doc__)
-
-# print info
-imgConvert.printImgInfo()
 
 # load in image
 imgGray = imgConvert.readImageGrayscale(image) # turn on for regular
 #img = imgConvert1.readImageOriginal(image) # turn on for background removal
 
-imgResize = imgConvert.resizeImageByHeightAndWidth(imgGray, None, None, desiredImgHeight = 400, desiredImgWidth = None)
+# get height and width of image
+height, width = imgConvert.getImageOrigHeightAndWidth()
 
 # print info
 imgConvert.printImgInfo()
 
-# show image
-#imgConvert1.showImage("Original Image", img)
+# if the image is a certain size
+if height >= 300 or width >= 300:
+
+    # resize image    
+    imgGray = imgConvert.resizeImageByHeightAndWidth(imgGray, None, None, desiredImgHeight = 200, desiredImgWidth = None)
 
 # get image ready
-eroImg = imgConvert.getImageReady(imgResize)     # regular
-#eroImg = imgConvert1.getImageReadyNoBackground(img) # background removal - need orig image
-
+eroImg = imgConvert.getImageReady(imgGray)
 
 # find contour lines
-conImgNoEdgeOld, conImgNoEdge, conNoEdgePoints = imgConvert.createContours(eroImg)
-
-# compare three images - original, edges found, final contour image 
-#imgConvert1.showThreeImages(img, conImgNoEdgeOld, conImgNoEdge, "Original", "Edges Found", "Final Contour")
-
-# close all windows
-#imgConvert.closeAllWindows()
-
+conImgNoEdgeOld, conImgNoEdge, conNoEdgePoints = imgConvert.createContours(eroImg, 2, xyRange, skipPoints, minArea)
 #-----------------------------------------
